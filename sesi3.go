@@ -7,30 +7,30 @@ import (
 )
 
 func main() {
-	calculateWords("selamat malam") // result text
+	exampleWords("selamat malam")
 }
 
-func calculateWords(text string) {
-	elementMapAwal, elementMapAkhir := map[string]int{}, make(map[string]int) // variabel awal dan akhir
+func exampleWords(text string) {
+	mapAwal, mapAkhir := map[string]int{}, make(map[string]int)
 
-	pecahPerkata := strings.Split(text, "") // dipotong menjadi slice
+	pecahKata := strings.Split(text, "")
 
-	for _, w := range pecahPerkata { // di looping simpan ke variabel awal
+	for _, w := range pecahKata {
 		fmt.Println(w)
-		elementMapAwal[w]++
+		mapAwal[w]++
 	}
 
-	keys := make([]string, 0, len(elementMapAwal))
+	keys := make([]string, 0, len(mapAwal))
 
-	for k := range elementMapAwal { //for looping simpan ke variabel keys
+	for k := range mapAwal {
 		keys = append(keys, k)
 	}
 
-	sort.Strings(keys) // mengurutkan dari a sampai z
+	sort.Strings(keys)
 
-	for _, k := range keys { // menyimpan variabel akhir
-		elementMapAkhir[k] = elementMapAwal[k] //fmt.Printf("%s = %d\n", k, elementMapAwal[k])
+	for _, k := range keys {
+		mapAkhir[k] = mapAwal[k]
 	}
 
-	fmt.Println(elementMapAkhir) // menampilkan hasil output
+	fmt.Println(mapAkhir)
 }
