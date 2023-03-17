@@ -29,6 +29,13 @@ func main() {
 			Pekerjaan: "Mahasiswa",
 			Alasan:    "Ingin Belajar Golang",
 		},
+		{
+			No:        "3",
+			Nama:      "Putra",
+			Alamat:    "Jalan Nelayan",
+			Pekerjaan: "Mahasiswa",
+			Alasan:    "Ingin Belajar Golang",
+		},
 	}
 	osArgsInput(dataForm)
 }
