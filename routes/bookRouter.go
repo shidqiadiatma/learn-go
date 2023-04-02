@@ -1,7 +1,7 @@
 package routers
 
 import (
-	"chapter2-sesi2/controllers"
+	"chapter2-sesi3/controllers"
 
 	"github.com/gin-gonic/gin"
 )

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"chapter2-sesi3/database"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,8 +16,6 @@ type Book struct {
 	Desc   string `json:"desc"`
 }
 
-var BookDatas = []Book{}
-
 func CreateBook(ctx *gin.Context) {
 	var newBook Book
 
@@ -25,17 +24,62 @@ func CreateBook(ctx *gin.Context) {
 		return
 	}
 
-	newBook.BookID = len(BookDatas) + 1
-	BookDatas = append(BookDatas, newBook)
+	sqlStatement := `
+	INSERT INTO books (title, author, description)
+	VALUES ($1, $2, $3)
+	RETURNING *
+	`
+
+	db := database.GetConnection()
+
+	var bookResult Book
+	result := db.QueryRow(sqlStatement, newBook.Title, newBook.Author, newBook.Desc)
+	err := result.Scan(&bookResult.BookID, &bookResult.Title, &bookResult.Author, &bookResult.Desc)
+
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"data": newBook,
+		"data": bookResult,
 	})
 }
 
 func GetBooks(ctx *gin.Context) {
+	var books []Book
+
+	sqlStatement := `
+	SELECT *
+	FROM books
+	`
+
+	db := database.GetConnection()
+
+	result, err := db.Query(sqlStatement)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	for result.Next() {
+		var book Book
+		err := result.Scan(&book.BookID, &book.Title, &book.Author, &book.Desc)
+		if err != nil {
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		books = append(books, book)
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
-		"data": BookDatas,
+		"data": books,
 	})
 }
 
@@ -53,12 +97,18 @@ func GetBookByID(ctx *gin.Context) {
 		return
 	}
 
-	for _, book := range BookDatas {
-		if bookIDInt == book.BookID {
-			isNotFound = false
-			BookFounded = book
-			break
-		}
+	sqlStatement := `
+	SELECT *
+	FROM books
+	WHERE book_id=$1
+	`
+
+	db := database.GetConnection()
+
+	result := db.QueryRow(sqlStatement, bookIDInt)
+	err = result.Scan(&BookFounded.BookID, &BookFounded.Title, &BookFounded.Author, &BookFounded.Desc)
+	if BookFounded.BookID != 0 {
+		isNotFound = false
 	}
 
 	if isNotFound {
@@ -93,13 +143,32 @@ func UpdateBook(ctx *gin.Context) {
 		return
 	}
 
-	for i, book := range BookDatas {
-		if bookIDInt == book.BookID {
-			isNotFound = false
-			BookDatas[i] = updatedBook
-			BookDatas[i].BookID = bookIDInt
-			break
-		}
+	sqlStatement := `
+	UPDATE books
+	SET title=$1, author=$2, description=$3
+	WHERE book_id=$4
+	RETURNING *
+	`
+
+	db := database.GetConnection()
+
+	var bookUpdatedResult Book
+	err = db.QueryRow(sqlStatement, updatedBook.Title, updatedBook.Author, updatedBook.Desc, bookIDInt).Scan(
+		&bookUpdatedResult.BookID,
+		&bookUpdatedResult.Title,
+		&bookUpdatedResult.Author,
+		&bookUpdatedResult.Desc,
+	)
+
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	if bookUpdatedResult.BookID != 0 {
+		isNotFound = false
 	}
 
 	if isNotFound {
@@ -111,14 +180,14 @@ func UpdateBook(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": fmt.Sprintf("Book with id: %d has been succeessfully updated", bookIDInt),
+		"message": fmt.Sprintf("Book with id: %d has been succeessfully updated", bookUpdatedResult.BookID),
+		"data":    bookUpdatedResult,
 	})
 }
 
 func DeleteBook(ctx *gin.Context) {
 	var bookID = ctx.Param("book_id")
 	var isNotFound = true
-	var bookIndex int
 
 	bookIDInt, err := strconv.Atoi(bookID)
 	if err != nil {
@@ -129,12 +198,26 @@ func DeleteBook(ctx *gin.Context) {
 		return
 	}
 
-	for i, book := range BookDatas {
-		if bookIDInt == book.BookID {
-			isNotFound = false
-			bookIndex = i
-			break
-		}
+	sqlStatement := `
+	DELETE FROM books
+	WHERE book_id=$1
+	RETURNING book_id
+	`
+
+	db := database.GetConnection()
+
+	var bookIdDeleted int
+	err = db.QueryRow(sqlStatement, bookIDInt).Scan(&bookIdDeleted)
+
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	if bookIdDeleted != 0 {
+		isNotFound = false
 	}
 
 	if isNotFound {
@@ -145,11 +228,7 @@ func DeleteBook(ctx *gin.Context) {
 		return
 	}
 
-	copy(BookDatas[bookIndex:], BookDatas[bookIndex+1:])
-	BookDatas[len(BookDatas)-1] = Book{}
-	BookDatas = BookDatas[:len(BookDatas)-1]
-
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": fmt.Sprintf("Book with id: %d has been succeessfully deleted", bookIDInt),
+		"message": fmt.Sprintf("Book with id: %d has been succeessfully deleted", bookIdDeleted),
 	})
 }
